@@ -4,6 +4,8 @@ Single V2 codepath using PyBoy + Stable Baselines3 PPO, streaming progress to th
 
 ## Quick start
 - Requirements: Python 3.10+, ffmpeg on PATH, Windows with NVIDIA GPU/CUDA.
+- Install PyTorch with CUDA first on Windows (example):  
+  `pip install torch==2.5.0+cu121 --index-url https://download.pytorch.org/whl/cu121`
 - Drop your legally obtained `PokemonRed.gb` in the repo root (sha1: `ea9bcae617fdf159b045185467ae58b2e4a48b9a`). `init.state` is already included for fast starts.
 - Install deps: `pip install -r requirements.txt`
 
