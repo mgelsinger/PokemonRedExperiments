@@ -1,0 +1,15 @@
+__pycache__
+.DS_Store
+rollouts
+*.gb
+*.ram
+.ipynb_checkpoints
+raw_documentation
+*.pem
+_autoplay.mp4
+session_*
+runs/
+.env
+PokemonRed.gb.state
+venv*
+.python-version
