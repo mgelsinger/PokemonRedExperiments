@@ -270,7 +270,7 @@ if __name__ == "__main__":
     callbacks = [checkpoint_callback, TensorboardCallback(run_dir), status_callback]
 
     if eval_every_steps:
-        eval_env_conf = env_defaults.copy()
+        eval_env_conf = env_config.copy()
         eval_env_conf.update(
             {
                 "session_path": run_dir / "eval_session",
