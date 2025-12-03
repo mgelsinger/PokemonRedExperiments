@@ -15,3 +15,4 @@ venv*
 .python-version
 .venv/
 PokemonRed.gb
+.claude

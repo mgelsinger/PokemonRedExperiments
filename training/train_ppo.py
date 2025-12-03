@@ -14,7 +14,7 @@ if str(REPO_ROOT) not in sys.path:
 from env.red_gym_env import RedGymEnv
 from env.stream_agent_wrapper import StreamWrapper
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
 
@@ -285,6 +285,9 @@ if __name__ == "__main__":
 
     # Build vectorized envs
     env = SubprocVecEnv([make_env(i, env_config, args.stream, seed=args.seed or 0) for i in range(num_envs)])
+
+    # Wrap with VecMonitor to enable episode-level logging
+    env = VecMonitor(env)
 
     ckpt_freq = args.checkpoint_freq or (ep_length // 2)
     checkpoint_callback = CheckpointCallback(save_freq=ckpt_freq, save_path=str(run_dir), name_prefix="poke")

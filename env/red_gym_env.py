@@ -304,7 +304,39 @@ class RedGymEnv(Env):
 
         self.step_count += 1
 
-        return obs, new_reward, False, step_limit_reached, {}
+        # Build info dict with episode completion metadata
+        info = {}
+        if step_limit_reached:
+            # Determine if episode was successful
+            success = False
+            if self.termination_condition == 'badge_earned':
+                success = self.get_badges() > 0
+            elif self.termination_condition == 'pokecenter_reached':
+                current_map = self.read_m(0xD35E)
+                success = current_map == 40
+            elif self.episode_reward_components['milestone'] > 0:
+                # If no explicit termination condition, milestone reward indicates progress
+                success = True
+
+            info['success'] = success
+            info['episode'] = {
+                'r': sum([
+                    self.episode_reward_components['exploration'],
+                    self.episode_reward_components['battle'],
+                    self.episode_reward_components['milestone'],
+                    self.episode_reward_components['penalty']
+                ]),
+                'l': self.step_count,
+                'exploration_r': self.episode_reward_components['exploration'],
+                'battle_r': self.episode_reward_components['battle'],
+                'milestone_r': self.episode_reward_components['milestone'],
+                'penalty_r': self.episode_reward_components['penalty'],
+                'battles_won': self.episode_battle_stats['battles_won'],
+                'battles_lost': self.episode_battle_stats['battles_lost'],
+                'battles_total': self.episode_battle_stats['battles_total'],
+            }
+
+        return obs, new_reward, False, step_limit_reached, info
     
     def run_action_on_emulator(self, action):
         # press button then release after some steps

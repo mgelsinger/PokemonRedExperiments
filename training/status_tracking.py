@@ -4,20 +4,43 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
+
+
+def convert_numpy_types(obj: Any) -> Any:
+    """
+    Recursively convert numpy types to native Python types for JSON serialization.
+    """
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {key: convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [convert_numpy_types(item) for item in obj]
+    else:
+        return obj
 
 
 def atomic_write_json(path: Path, payload: Dict[str, Any]):
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, indent=2))
+    # Convert numpy types before serialization
+    clean_payload = convert_numpy_types(payload)
+    tmp.write_text(json.dumps(clean_payload, indent=2))
     tmp.replace(path)
 
 
 def append_jsonl(path: Path, payload: Dict[str, Any]):
     path.parent.mkdir(parents=True, exist_ok=True)
+    # Convert numpy types before serialization
+    clean_payload = convert_numpy_types(payload)
     with path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(payload) + os.linesep)
+        f.write(json.dumps(clean_payload) + os.linesep)
 
 
 class StatusWriterCallback(BaseCallback):

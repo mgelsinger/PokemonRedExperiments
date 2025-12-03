@@ -32,12 +32,64 @@ class TensorboardCallback(BaseCallback):
         super().__init__(verbose)
         self.log_dir = log_dir
         self.writer = None
+        # Episode-level tracking
+        self.episode_returns = []
+        self.episode_lengths = []
+        self.episode_successes = []
+        self.episode_exploration_rewards = []
+        self.episode_battle_rewards = []
+        self.episode_milestone_rewards = []
+        self.episode_penalty_rewards = []
 
     def _on_training_start(self):
         if self.writer is None:
             self.writer = SummaryWriter(log_dir=os.path.join(self.log_dir, 'histogram'))
 
     def _on_step(self) -> bool:
+        # Check for episode completions from VecMonitor
+        # VecMonitor adds 'episode' key to info dicts when episodes finish
+        infos = self.locals.get('infos', [])
+        for info in infos:
+            if 'episode' in info:
+                ep_info = info['episode']
+                # Collect episode metrics
+                self.episode_returns.append(ep_info['r'])
+                self.episode_lengths.append(ep_info['l'])
+                self.episode_exploration_rewards.append(ep_info.get('exploration_r', 0))
+                self.episode_battle_rewards.append(ep_info.get('battle_r', 0))
+                self.episode_milestone_rewards.append(ep_info.get('milestone_r', 0))
+                self.episode_penalty_rewards.append(ep_info.get('penalty_r', 0))
+
+                # Track success if present
+                if 'success' in info:
+                    self.episode_successes.append(1.0 if info['success'] else 0.0)
+
+        # Log episode-level metrics when we have data
+        if len(self.episode_returns) > 0:
+            self.logger.record("train/episode_return_mean", np.mean(self.episode_returns))
+            self.logger.record("train/episode_return_max", np.max(self.episode_returns))
+            self.logger.record("train/episode_return_min", np.min(self.episode_returns))
+            self.logger.record("train/episode_length_mean", np.mean(self.episode_lengths))
+            self.logger.record("train/exploration_return", np.mean(self.episode_exploration_rewards))
+            self.logger.record("train/battle_return", np.mean(self.episode_battle_rewards))
+            self.logger.record("train/milestone_return", np.mean(self.episode_milestone_rewards))
+            self.logger.record("train/penalty_return", np.mean(self.episode_penalty_rewards))
+
+            if len(self.episode_successes) > 0:
+                self.logger.record("train/success_rate", np.mean(self.episode_successes))
+
+            # Write histograms
+            self.writer.add_histogram("train/episode_return_distrib", np.array(self.episode_returns), self.n_calls)
+            self.writer.add_histogram("train/episode_length_distrib", np.array(self.episode_lengths), self.n_calls)
+
+            # Clear buffers after logging
+            self.episode_returns.clear()
+            self.episode_lengths.clear()
+            self.episode_successes.clear()
+            self.episode_exploration_rewards.clear()
+            self.episode_battle_rewards.clear()
+            self.episode_milestone_rewards.clear()
+            self.episode_penalty_rewards.clear()
 
         if self.training_env.env_method("check_if_done", indices=[0])[0]:
             all_infos = self.training_env.get_attr("agent_stats")

@@ -36,7 +36,7 @@
   },
   "train": {
     "num_envs": 16,
-    "total_multiplier": 100,
+    "total_multiplier": 50,
     "batch_size": 256,
     "n_epochs": 3,
     "gamma": 0.99,
