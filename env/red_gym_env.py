@@ -14,6 +14,7 @@ from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
 
 from .global_map import local_to_global, GLOBAL_MAP_SHAPE
+from .reward_config import RewardConfig, get_reward_config
 
 RESOURCE_DIR = Path(__file__).parent
 
@@ -44,6 +45,33 @@ class RedGymEnv(Env):
             if "instance_id" not in config
             else config["instance_id"]
         )
+
+        # Initialize reward configuration
+        # Can be specified via config["reward_config"] as either:
+        # - A RewardConfig object
+        # - A dict to create RewardConfig from
+        # - A string name of a preset config
+        if "reward_config" in config:
+            rc = config["reward_config"]
+            if isinstance(rc, RewardConfig):
+                self.reward_config = rc
+            elif isinstance(rc, dict):
+                self.reward_config = RewardConfig.from_dict(rc)
+            elif isinstance(rc, str):
+                self.reward_config = get_reward_config(rc)
+            else:
+                self.reward_config = RewardConfig()
+        else:
+            # Default config with legacy parameters
+            self.reward_config = RewardConfig(
+                reward_scale=self.reward_scale,
+                legacy_heal=10.0,
+            )
+
+        # Task-specific termination condition (optional)
+        # Can be: 'badge_earned', 'pokecenter_reached', or None
+        self.termination_condition = config.get("termination_condition", None)
+
         self.s_path.mkdir(exist_ok=True)
         self.full_frame_writer = None
         self.model_frame_writer = None
@@ -136,7 +164,7 @@ class RedGymEnv(Env):
         self.explore_map = np.zeros(self.explore_map_dim, dtype=np.uint8)
 
         self.recent_screens = np.zeros( self.output_shape, dtype=np.uint8)
-        
+
         self.recent_actions = np.zeros((self.frame_stacks,), dtype=np.uint8)
 
         self.levels_satisfied = False
@@ -157,7 +185,37 @@ class RedGymEnv(Env):
 
         self.current_event_flags_set = {}
 
-        # experiment! 
+        # === NEW: Episode-specific tracking for reward shaping ===
+        # Track tiles visited THIS EPISODE for exploration rewards
+        self.episode_visited_tiles = set()
+        # Track recent tiles for "recent tile" exploration reward
+        self.recent_tile_queue = []
+        # Previous position for wall detection
+        self.prev_position = self.get_game_coords()
+        # Battle tracking
+        self.in_battle = False
+        self.prev_player_hp = self.read_hp_fraction()
+        self.prev_opponent_hp = self.get_opponent_hp_fraction()
+        # Milestone tracking
+        self.prev_levels = self.get_party_levels()
+        self.prev_badges = self.get_badges()
+        self.prev_events = self.get_all_events_reward()
+        # Reward component accumulators for this episode
+        self.episode_reward_components = {
+            'exploration': 0.0,
+            'battle': 0.0,
+            'milestone': 0.0,
+            'penalty': 0.0,
+            'legacy': 0.0,
+        }
+        # Battle statistics for this episode
+        self.episode_battle_stats = {
+            'battles_won': 0,
+            'battles_lost': 0,
+            'battles_total': 0,
+        }
+
+        # experiment!
         # self.max_steps += 128
 
         self.max_map_progress = 0
@@ -388,15 +446,34 @@ class RedGymEnv(Env):
         self.recent_actions[0] = action
 
     def update_reward(self):
-        # compute reward
-        self.progress_reward = self.get_game_state_reward()
-        new_total = sum(
-            [val for _, val in self.progress_reward.items()]
-        )
-        new_step = new_total - self.total_reward
+        """
+        Compute total reward for this step using shaped reward components.
+        Tracks both new shaped rewards and legacy rewards for comparison.
+        """
+        # Compute shaped reward components
+        exploration_rew = self.compute_exploration_reward()
+        battle_rew = self.compute_battle_reward()
+        milestone_rew = self.compute_milestone_reward()
+        penalty_rew = self.compute_penalty_reward()
 
+        # Accumulate episode component totals for logging
+        self.episode_reward_components['exploration'] += exploration_rew
+        self.episode_reward_components['battle'] += battle_rew
+        self.episode_reward_components['milestone'] += milestone_rew
+        self.episode_reward_components['penalty'] += penalty_rew
+
+        # Total step reward from shaped components
+        step_reward = exploration_rew + battle_rew + milestone_rew + penalty_rew
+
+        # Also compute legacy reward for backward compatibility and logging
+        self.progress_reward = self.get_game_state_reward()
+        new_total = sum([val for _, val in self.progress_reward.items()])
+        legacy_step_reward = new_total - self.total_reward
         self.total_reward = new_total
-        return new_step
+        self.episode_reward_components['legacy'] += legacy_step_reward
+
+        # Return the shaped reward (this is what the agent actually receives)
+        return step_reward
 
     def group_rewards(self):
         prog = self.progress_reward
@@ -408,8 +485,25 @@ class RedGymEnv(Env):
         )
 
     def check_if_done(self):
+        # Default termination: max steps reached
         done = self.step_count >= self.max_steps - 1
-        # done = self.read_hp_fraction() == 0 # end game on loss
+
+        # Task-specific termination conditions
+        if not done and self.termination_condition:
+            if self.termination_condition == 'badge_earned':
+                # Terminate if any badge was earned this episode
+                done = self.get_badges() > self.prev_badges
+            elif self.termination_condition == 'pokecenter_reached':
+                # Pokecenter map IDs: 1 (Viridian), 2 (Pewter), etc.
+                # This is a simplified check - Pokecenter maps in Pokemon Red
+                current_map = self.read_m(0xD35E)
+                # Pallet Town is map 0, Viridian Pokecenter is map 40
+                # This checks if we reached Viridian Pokecenter
+                done = current_map == 40
+
+        # Optional: end game on loss
+        # done = done or (self.read_hp_fraction() == 0)
+
         return done
 
     def save_and_print_info(self, done, obs):
@@ -495,6 +589,24 @@ class RedGymEnv(Env):
     def get_badges(self):
         return self.bit_count(self.read_m(0xD356))
 
+    def get_party_levels(self):
+        """Get list of current party Pokemon levels."""
+        return [
+            self.read_m(addr)
+            for addr in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]
+        ]
+
+    def get_opponent_hp_fraction(self):
+        """Get opponent's HP fraction (0-1). Returns 0 if not in battle."""
+        if self.read_m(0xD057) == 0:  # Not in battle
+            return 0.0
+        # Read opponent HP
+        hp = self.read_hp(0xCFE6)  # Current opponent HP
+        max_hp = self.read_hp(0xCFF4)  # Max opponent HP
+        if max_hp == 0:
+            return 0.0
+        return hp / max_hp
+
     def read_party(self):
         return [
             self.read_m(addr)
@@ -512,6 +624,163 @@ class RedGymEnv(Env):
             - int(self.read_bit(museum_ticket[0], museum_ticket[1])),
             0,
         )
+
+    def compute_exploration_reward(self):
+        """
+        Compute exploration reward based on visiting new tiles.
+        Returns reward for this step.
+        """
+        if not self.reward_config.enable_exploration:
+            return 0.0
+
+        reward = 0.0
+        x_pos, y_pos, map_n = self.get_game_coords()
+        coord_string = f"x:{x_pos} y:{y_pos} m:{map_n}"
+
+        # Check if this is a new tile for this episode
+        if coord_string not in self.episode_visited_tiles:
+            self.episode_visited_tiles.add(coord_string)
+            reward += self.reward_config.exploration_new_tile
+        # Check if this tile was not visited recently
+        elif coord_string not in self.recent_tile_queue:
+            reward += self.reward_config.exploration_recent_tile
+
+        # Update recent tile queue
+        self.recent_tile_queue.append(coord_string)
+        if len(self.recent_tile_queue) > self.reward_config.exploration_recent_window:
+            self.recent_tile_queue.pop(0)
+
+        return reward * self.reward_config.reward_scale
+
+    def compute_battle_reward(self):
+        """
+        Compute battle reward based on HP changes and battle outcomes.
+        Returns reward for this step.
+        """
+        if not self.reward_config.enable_battle:
+            return 0.0
+
+        reward = 0.0
+        current_in_battle = self.read_m(0xD057) != 0
+
+        # Get current HP fractions
+        current_player_hp = self.read_hp_fraction()
+        current_opponent_hp = self.get_opponent_hp_fraction()
+
+        # Detect battle transitions
+        if current_in_battle and not self.in_battle:
+            # Just entered battle - initialize battle state
+            self.in_battle = True
+            self.prev_opponent_hp = current_opponent_hp
+
+        elif self.in_battle and not current_in_battle:
+            # Just exited battle - check if won or lost
+            self.episode_battle_stats['battles_total'] += 1
+            if self.prev_player_hp > 0 and current_player_hp == 0:
+                # Lost battle (player fainted)
+                reward += self.reward_config.battle_loss
+                self.episode_battle_stats['battles_lost'] += 1
+            elif self.prev_opponent_hp > 0 and current_opponent_hp == 0:
+                # Won battle (opponent fainted)
+                reward += self.reward_config.battle_win
+                self.episode_battle_stats['battles_won'] += 1
+            self.in_battle = False
+
+        elif current_in_battle:
+            # In battle - compute HP delta
+            player_hp_delta = self.prev_player_hp - current_player_hp
+            opponent_hp_delta = self.prev_opponent_hp - current_opponent_hp
+            # Reward is positive when opponent loses more HP than player
+            hp_reward = opponent_hp_delta - player_hp_delta
+            reward += hp_reward * self.reward_config.battle_hp_delta
+
+        # Update previous HP tracking
+        self.prev_player_hp = current_player_hp
+        self.prev_opponent_hp = current_opponent_hp
+
+        return reward * self.reward_config.reward_scale
+
+    def compute_milestone_reward(self):
+        """
+        Compute milestone reward for achievements (badges, levels, events).
+        Returns reward for this step.
+        """
+        if not self.reward_config.enable_milestone:
+            return 0.0
+
+        reward = 0.0
+
+        # Badge milestone
+        current_badges = self.get_badges()
+        if current_badges > self.prev_badges:
+            badge_gain = current_badges - self.prev_badges
+            reward += badge_gain * self.reward_config.milestone_badge
+            self.prev_badges = current_badges
+
+        # Level up milestone
+        current_levels = self.get_party_levels()
+        total_level_gain = sum(current_levels) - sum(self.prev_levels)
+        if total_level_gain > 0:
+            reward += total_level_gain * self.reward_config.milestone_level_up
+            self.prev_levels = current_levels
+
+        # Event flag milestone
+        current_events = self.get_all_events_reward()
+        if current_events > self.prev_events:
+            event_gain = current_events - self.prev_events
+            reward += event_gain * self.reward_config.milestone_event
+            self.prev_events = current_events
+
+        # Key location milestone
+        map_idx = self.read_m(0xD35E)
+        prev_map = self.prev_position[2]
+        if map_idx != prev_map and map_idx in self.essential_map_locations:
+            reward += self.reward_config.milestone_key_location
+
+        return reward * self.reward_config.reward_scale
+
+    def compute_penalty_reward(self):
+        """
+        Compute penalty rewards (step penalty, wall collision, stuck).
+        Returns reward for this step (typically negative).
+        """
+        if not self.reward_config.enable_penalty:
+            return 0.0
+
+        reward = 0.0
+
+        # Step penalty (encourages faster solutions)
+        reward += self.reward_config.penalty_step
+
+        # Wall collision penalty (no movement despite action)
+        current_pos = self.get_game_coords()
+        if current_pos == self.prev_position:
+            # Check if we're not in a menu or battle (where staying still is expected)
+            if self.read_m(0xD057) == 0:  # Not in battle
+                reward += self.reward_config.penalty_wall
+
+        # Stuck penalty (staying in same location too long)
+        coord_string = f"x:{current_pos[0]} y:{current_pos[1]} m:{current_pos[2]}"
+        if coord_string in self.seen_coords and self.seen_coords[coord_string] > 600:
+            reward += self.reward_config.penalty_stuck
+
+        # Update previous position
+        self.prev_position = current_pos
+
+        return reward * self.reward_config.reward_scale
+
+    def compute_legacy_reward(self):
+        """
+        Compute legacy rewards for backward compatibility (healing, etc.).
+        Returns reward for this step.
+        """
+        if not self.reward_config.enable_legacy_heal:
+            return 0.0
+
+        # This is the healing reward from the original implementation
+        # It's accumulated over the episode and not step-by-step
+        # For compatibility, we return 0 here and let the legacy code handle it
+        return 0.0
 
     def get_game_state_reward(self, print_stats=False):
         # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map

@@ -45,6 +45,15 @@ DEFAULT_TRAIN_CONFIG: Dict[str, Any] = {
     "n_epochs": 1,
     "gamma": 0.997,
     "ent_coef": 0.01,
+    "learning_rate": 3e-4,
+    "clip_range": 0.2,
+    "vf_coef": 0.5,
+    "max_grad_norm": 0.5,
+    "gae_lambda": 0.95,
+    "use_sde": False,
+    "sde_sample_freq": -1,
+    "normalize_advantage": True,
+    "target_kl": None,
 }
 
 GPU_PRESETS = {
@@ -207,9 +216,21 @@ if __name__ == "__main__":
     num_envs = args.num_envs or train_defaults["num_envs"]
     total_multiplier = args.total_multiplier or train_defaults["total_multiplier"]
     batch_size = args.batch_size or train_defaults["batch_size"]
+
+    # Extract all PPO hyperparameters
     n_epochs = train_defaults.get("n_epochs", 1)
     gamma = train_defaults.get("gamma", 0.997)
     ent_coef = train_defaults.get("ent_coef", 0.01)
+    learning_rate = train_defaults.get("learning_rate", 3e-4)
+    clip_range = train_defaults.get("clip_range", 0.2)
+    vf_coef = train_defaults.get("vf_coef", 0.5)
+    max_grad_norm = train_defaults.get("max_grad_norm", 0.5)
+    gae_lambda = train_defaults.get("gae_lambda", 0.95)
+    use_sde = train_defaults.get("use_sde", False)
+    sde_sample_freq = train_defaults.get("sde_sample_freq", -1)
+    normalize_advantage = train_defaults.get("normalize_advantage", True)
+    target_kl = train_defaults.get("target_kl", None)
+
     train_config_resolved = {
         **train_defaults,
         "num_envs": num_envs,
@@ -218,6 +239,15 @@ if __name__ == "__main__":
         "n_epochs": n_epochs,
         "gamma": gamma,
         "ent_coef": ent_coef,
+        "learning_rate": learning_rate,
+        "clip_range": clip_range,
+        "vf_coef": vf_coef,
+        "max_grad_norm": max_grad_norm,
+        "gae_lambda": gae_lambda,
+        "use_sde": use_sde,
+        "sde_sample_freq": sde_sample_freq,
+        "normalize_advantage": normalize_advantage,
+        "target_kl": target_kl,
     }
     if batch_size < 1:
         raise ValueError("--batch-size must be >= 1")
@@ -344,6 +374,15 @@ if __name__ == "__main__":
             n_epochs=n_epochs,
             gamma=gamma,
             ent_coef=ent_coef,
+            learning_rate=learning_rate,
+            clip_range=clip_range,
+            vf_coef=vf_coef,
+            max_grad_norm=max_grad_norm,
+            gae_lambda=gae_lambda,
+            use_sde=use_sde,
+            sde_sample_freq=sde_sample_freq,
+            normalize_advantage=normalize_advantage,
+            target_kl=target_kl,
             tensorboard_log=str(run_dir),
         )
 

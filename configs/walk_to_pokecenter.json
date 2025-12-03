@@ -1,0 +1,55 @@
+{
+  "name": "walk_to_pokecenter",
+  "description": "Navigate to Pokecenter - simplest navigation task",
+  "env": {
+    "headless": true,
+    "save_final_state": false,
+    "early_stop": false,
+    "action_freq": 24,
+    "max_steps": 40960,
+    "print_rewards": true,
+    "save_video": false,
+    "fast_video": true,
+    "debug": false,
+    "reward_scale": 1.0,
+    "explore_weight": 1.0,
+    "termination_condition": "pokecenter_reached",
+    "reward_config": {
+      "exploration_new_tile": 10.0,
+      "exploration_recent_tile": 1.0,
+      "battle_hp_delta": 0.0,
+      "battle_win": 0.0,
+      "battle_loss": 0.0,
+      "milestone_badge": 0.0,
+      "milestone_level_up": 0.0,
+      "milestone_key_location": 50.0,
+      "milestone_event": 0.0,
+      "penalty_step": -0.001,
+      "penalty_wall": -0.1,
+      "penalty_stuck": -0.2,
+      "reward_scale": 1.0,
+      "enable_exploration": true,
+      "enable_battle": false,
+      "enable_milestone": true,
+      "enable_penalty": true
+    }
+  },
+  "train": {
+    "num_envs": 16,
+    "total_multiplier": 100,
+    "batch_size": 256,
+    "n_epochs": 3,
+    "gamma": 0.99,
+    "ent_coef": 0.03,
+    "learning_rate": 0.0005,
+    "clip_range": 0.2,
+    "vf_coef": 0.5,
+    "max_grad_norm": 0.5,
+    "gae_lambda": 0.95
+  },
+  "recommended_steps": {
+    "smoke_test": 500000,
+    "early_learning": 5000000,
+    "deeper_training": 20000000
+  }
+}

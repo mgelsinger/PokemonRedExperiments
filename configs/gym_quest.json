@@ -1,0 +1,51 @@
+{
+  "name": "gym_quest",
+  "description": "Navigate to Pewter City Gym and earn the Boulder Badge",
+  "env": {
+    "headless": true,
+    "save_final_state": false,
+    "early_stop": false,
+    "action_freq": 24,
+    "max_steps": 245760,
+    "print_rewards": true,
+    "save_video": false,
+    "fast_video": true,
+    "debug": false,
+    "reward_scale": 1.0,
+    "explore_weight": 1.0,
+    "termination_condition": "badge_earned",
+    "reward_config": {
+      "exploration_new_tile": 2.0,
+      "exploration_recent_tile": 0.2,
+      "battle_hp_delta": 2.0,
+      "battle_win": 50.0,
+      "battle_loss": -10.0,
+      "milestone_badge": 500.0,
+      "milestone_level_up": 5.0,
+      "milestone_key_location": 30.0,
+      "milestone_event": 5.0,
+      "penalty_step": -0.002,
+      "penalty_wall": -0.05,
+      "penalty_stuck": -0.1,
+      "reward_scale": 1.0
+    }
+  },
+  "train": {
+    "num_envs": 16,
+    "total_multiplier": 1000,
+    "batch_size": 1024,
+    "n_epochs": 4,
+    "gamma": 0.995,
+    "ent_coef": 0.01,
+    "learning_rate": 0.0003,
+    "clip_range": 0.2,
+    "vf_coef": 0.5,
+    "max_grad_norm": 0.5,
+    "gae_lambda": 0.95
+  },
+  "recommended_steps": {
+    "smoke_test": 4000000,
+    "early_learning": 40000000,
+    "deeper_training": 200000000
+  }
+}
