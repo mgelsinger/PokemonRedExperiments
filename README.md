@@ -43,6 +43,16 @@ python tools/serve_dashboard.py --port 8000
 ```
 Opens a lightweight HTML dashboard listing runs (latest steps, streaming on/off, batch/num_envs) and shows a copy-paste compare command for any two runs.
 
+### Interactive control panel (start/stop runs, tweak sliders)
+```bash
+python tools/ui_server.py
+```
+Then open http://localhost:8000 for a web UI with human-friendly sliders/checkboxes to launch runs, watch progress, tail logs, view evals, and see checkpoints. The UI reads `status.json`/`eval.jsonl` from each run and does not require TensorBoard.
+New CLI flags in `training/train_ppo.py` support the panel:
+- `--status-file`, `--status-interval` (write status snapshots)
+- `--eval-log`, `--eval-every-steps`, `--eval-episodes`, `--eval-max-steps`, `--eval-stream`
+- `--resume-checkpoint`, `--resume-latest`, `--seed`
+
 ## Layout
 - `env/`: Gym environment (`red_gym_env.py`), map streamer (`stream_agent_wrapper.py`), map data (`map_data.json`, `events.json`, `global_map.py`)
 - `training/`: PPO train/play scripts and `tensorboard_callback.py`

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pokemon Red PPO Control Panel</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Pokemon Red PPO Control Panel</h1>
+      <p class="subtitle">Start, monitor, and evaluate training runs without touching the CLI.</p>
+    </div>
+    <div class="actions">
+      <button id="stop-btn" class="danger">Stop Run</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Launch New Run</h2>
+      <form id="run-form">
+        <div class="grid">
+          <label>ROM path
+            <input type="text" id="rom" value="PokemonRed.gb" />
+          </label>
+          <label>State path
+            <input type="text" id="state" value="init.state" />
+          </label>
+          <label>Run name
+            <input type="text" id="run_name" value="ui_run" />
+          </label>
+          <label>Preset
+            <select id="preset">
+              <option value="">None</option>
+              <option value="small">Small</option>
+              <option value="medium">Medium</option>
+              <option value="large">Large</option>
+            </select>
+          </label>
+          <label>Num envs
+            <input type="number" id="num_envs" value="8" min="1" />
+          </label>
+          <label>Batch size
+            <input type="number" id="batch_size" value="256" min="1" />
+          </label>
+          <label>Total multiplier
+            <input type="number" id="total_multiplier" value="1000" min="1" />
+          </label>
+          <label>Checkpoint freq (steps)
+            <input type="number" id="checkpoint_freq" placeholder="default" min="1" />
+          </label>
+          <label>Status interval (s)
+            <input type="number" id="status_interval" value="10" min="1" />
+          </label>
+          <label>Seed (optional)
+            <input type="number" id="seed" placeholder="auto" />
+          </label>
+          <label>Eval every (steps)
+            <input type="number" id="eval_every_steps" placeholder="off" min="1" />
+          </label>
+          <label>Eval episodes
+            <input type="number" id="eval_episodes" value="2" min="1" />
+          </label>
+          <label>Eval max steps
+            <input type="number" id="eval_max_steps" placeholder="env max" min="1" />
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" id="stream" checked /> Stream overlays
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" id="wandb" /> Enable wandb
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" id="eval_stream" /> Stream during eval
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="submit">Start Run</button>
+          <span id="form-status" class="muted"></span>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Live Status</h2>
+      <div id="status-summary" class="status-grid">
+        <div><span class="label">Run</span><span id="status-run">-</span></div>
+        <div><span class="label">Progress</span><span id="status-progress">-</span></div>
+        <div><span class="label">Steps</span><span id="status-steps">-</span></div>
+        <div><span class="label">Throughput</span><span id="status-throughput">-</span></div>
+        <div><span class="label">Last eval</span><span id="status-last-eval">-</span></div>
+        <div><span class="label">PID</span><span id="status-pid">-</span></div>
+      </div>
+      <div class="metrics">
+        <div>
+          <h3>Train metrics</h3>
+          <ul id="metric-list"></ul>
+        </div>
+        <div>
+          <h3>Eval history</h3>
+          <div id="eval-list" class="list"></div>
+        </div>
+        <div>
+          <h3>Checkpoints</h3>
+          <div id="ckpt-list" class="list"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Logs</h2>
+      <div class="logs">
+        <div>
+          <h3>Stdout tail</h3>
+          <pre id="stdout-log"></pre>
+        </div>
+        <div>
+          <h3>Stderr tail</h3>
+          <pre id="stderr-log"></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/main.js"></script>
+</body>
+</html>
