@@ -1,0 +1,64 @@
+{
+  "name": "balanced_redesign",
+  "description": "REDESIGNED: Balanced exploration and battles for full game progress",
+  "env": {
+    "headless": true,
+    "save_final_state": false,
+    "early_stop": false,
+    "action_freq": 24,
+    "max_steps": 8192,
+    "print_rewards": false,
+    "save_video": false,
+    "fast_video": true,
+    "debug": false,
+    "reward_scale": 1.0,
+    "explore_weight": 1.0,
+    "termination_condition": null,
+    "reward_config": {
+      "enable_exploration": true,
+      "exploration_new_tile": 0.1,
+      "exploration_recent_tile": 0.01,
+      "exploration_recent_window": 50,
+
+      "enable_battle": true,
+      "battle_start_bonus": 10.0,
+      "battle_hp_delta": 5.0,
+      "battle_win": 50.0,
+      "battle_loss": -10.0,
+
+      "enable_milestone": true,
+      "milestone_badge": 500.0,
+      "milestone_level_up": 20.0,
+      "milestone_event": 5.0,
+      "milestone_key_location": 30.0,
+
+      "enable_penalty": true,
+      "penalty_step": -0.001,
+      "penalty_wall": -0.05,
+      "penalty_stuck": -0.1,
+
+      "enable_legacy_heal": false,
+      "legacy_heal": 0.0,
+
+      "reward_scale": 1.0
+    }
+  },
+  "train": {
+    "num_envs": 12,
+    "total_multiplier": 300,
+    "batch_size": 1024,
+    "n_epochs": 4,
+    "gamma": 0.995,
+    "ent_coef": 0.01,
+    "learning_rate": 0.0003,
+    "clip_range": 0.2,
+    "vf_coef": 0.5,
+    "max_grad_norm": 0.5,
+    "gae_lambda": 0.95
+  },
+  "recommended_steps": {
+    "smoke_test": 2000000,
+    "early_learning": 20000000,
+    "deeper_training": 100000000
+  }
+}

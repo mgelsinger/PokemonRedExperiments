@@ -6,7 +6,7 @@
     "save_final_state": false,
     "early_stop": false,
     "action_freq": 24,
-    "max_steps": 245760,
+    "max_steps": 2048,
     "print_rewards": true,
     "save_video": false,
     "fast_video": true,
@@ -32,7 +32,7 @@
   },
   "train": {
     "num_envs": 16,
-    "total_multiplier": 1000,
+    "total_multiplier": 100,
     "batch_size": 1024,
     "n_epochs": 4,
     "gamma": 0.995,

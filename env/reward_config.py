@@ -27,6 +27,8 @@ class RewardConfig:
     exploration_recent_window: int = 100
 
     # === Battle Rewards ===
+    # Bonus for entering a battle (encourages battle-seeking)
+    battle_start_bonus: float = 0.0
     # Coefficient for HP delta (opponent_hp_loss - player_hp_loss)
     battle_hp_delta: float = 0.5
     # Reward for winning a battle

@@ -40,6 +40,16 @@ class TensorboardCallback(BaseCallback):
         self.episode_battle_rewards = []
         self.episode_milestone_rewards = []
         self.episode_penalty_rewards = []
+        # Battle-focused tracking
+        self.episode_battles_started = []
+        self.episode_battles_won = []
+        self.episode_battles_total = []
+        self.episode_steps_to_first_battle = []
+        # Milestone tracking
+        self.episode_badges_earned = []
+        self.episode_levels_gained = []
+        self.episode_deaths = []
+        self.episode_map_progress = []
 
     def _on_training_start(self):
         if self.writer is None:
@@ -60,6 +70,18 @@ class TensorboardCallback(BaseCallback):
                 self.episode_milestone_rewards.append(ep_info.get('milestone_r', 0))
                 self.episode_penalty_rewards.append(ep_info.get('penalty_r', 0))
 
+                # Battle-focused metrics
+                self.episode_battles_started.append(ep_info.get('battles_started', 0))
+                self.episode_battles_won.append(ep_info.get('battles_won', 0))
+                self.episode_battles_total.append(ep_info.get('battles_total', 0))
+                self.episode_steps_to_first_battle.append(ep_info.get('steps_to_first_battle', ep_info['l']))
+
+                # Milestone metrics
+                self.episode_badges_earned.append(ep_info.get('badges_earned', 0))
+                self.episode_levels_gained.append(ep_info.get('levels_gained', 0))
+                self.episode_deaths.append(ep_info.get('deaths', 0))
+                self.episode_map_progress.append(ep_info.get('map_progress_max', 0))
+
                 # Track success if present
                 if 'success' in info:
                     self.episode_successes.append(1.0 if info['success'] else 0.0)
@@ -74,6 +96,21 @@ class TensorboardCallback(BaseCallback):
             self.logger.record("train/battle_return", np.mean(self.episode_battle_rewards))
             self.logger.record("train/milestone_return", np.mean(self.episode_milestone_rewards))
             self.logger.record("train/penalty_return", np.mean(self.episode_penalty_rewards))
+
+            # Battle-focused metrics
+            self.logger.record("train/episode_battles_started_mean", np.mean(self.episode_battles_started))
+            self.logger.record("train/episode_battles_won_mean", np.mean(self.episode_battles_won))
+            self.logger.record("train/episode_battles_total_mean", np.mean(self.episode_battles_total))
+            if len(self.episode_steps_to_first_battle) > 0:
+                valid_steps = [s for s in self.episode_steps_to_first_battle if s is not None]
+                if valid_steps:
+                    self.logger.record("train/episode_steps_to_first_battle", np.mean(valid_steps))
+
+            # Milestone metrics
+            self.logger.record("train/episode_badges_earned_mean", np.mean(self.episode_badges_earned))
+            self.logger.record("train/episode_levels_gained_mean", np.mean(self.episode_levels_gained))
+            self.logger.record("train/episode_deaths_mean", np.mean(self.episode_deaths))
+            self.logger.record("train/episode_map_progress_max", np.mean(self.episode_map_progress))
 
             if len(self.episode_successes) > 0:
                 self.logger.record("train/success_rate", np.mean(self.episode_successes))
@@ -90,8 +127,19 @@ class TensorboardCallback(BaseCallback):
             self.episode_battle_rewards.clear()
             self.episode_milestone_rewards.clear()
             self.episode_penalty_rewards.clear()
+            self.episode_battles_started.clear()
+            self.episode_battles_won.clear()
+            self.episode_battles_total.clear()
+            self.episode_steps_to_first_battle.clear()
+            self.episode_badges_earned.clear()
+            self.episode_levels_gained.clear()
+            self.episode_deaths.clear()
+            self.episode_map_progress.clear()
 
-        if self.training_env.env_method("check_if_done", indices=[0])[0]:
+        # Check if any environment has reached max_steps (episode ended)
+        step_counts = self.training_env.get_attr("step_count")
+        max_steps = self.training_env.get_attr("max_steps")
+        if step_counts[0] >= max_steps[0] - 1:
             all_infos = self.training_env.get_attr("agent_stats")
             all_final_infos = [stats[-1] for stats in all_infos]
             mean_infos, distributions = merge_dicts(all_final_infos)

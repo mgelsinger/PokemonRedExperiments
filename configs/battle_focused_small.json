@@ -1,0 +1,64 @@
+{
+  "name": "battle_focused_small",
+  "description": "Small-map battle training - Pallet Town + Route 1 with high battle frequency",
+  "env": {
+    "headless": true,
+    "save_final_state": false,
+    "early_stop": false,
+    "action_freq": 24,
+    "max_steps": 4096,
+    "print_rewards": false,
+    "save_video": false,
+    "fast_video": true,
+    "debug": false,
+    "reward_scale": 1.0,
+    "explore_weight": 1.0,
+    "termination_condition": null,
+    "reward_config": {
+      "enable_exploration": true,
+      "exploration_new_tile": 0.1,
+      "exploration_recent_tile": 0.01,
+      "exploration_recent_window": 50,
+
+      "enable_battle": true,
+      "battle_start_bonus": 5.0,
+      "battle_hp_delta": 3.0,
+      "battle_win": 30.0,
+      "battle_loss": -5.0,
+
+      "enable_milestone": true,
+      "milestone_badge": 500.0,
+      "milestone_level_up": 10.0,
+      "milestone_event": 3.0,
+      "milestone_key_location": 20.0,
+
+      "enable_penalty": true,
+      "penalty_step": -0.001,
+      "penalty_wall": -0.02,
+      "penalty_stuck": -0.05,
+
+      "enable_legacy_heal": false,
+      "legacy_heal": 0.0,
+
+      "reward_scale": 1.0
+    }
+  },
+  "train": {
+    "num_envs": 16,
+    "total_multiplier": 200,
+    "batch_size": 1024,
+    "n_epochs": 4,
+    "gamma": 0.995,
+    "ent_coef": 0.01,
+    "learning_rate": 0.0003,
+    "clip_range": 0.2,
+    "vf_coef": 0.5,
+    "max_grad_norm": 0.5,
+    "gae_lambda": 0.95
+  },
+  "recommended_steps": {
+    "smoke_test": 1000000,
+    "early_learning": 10000000,
+    "deeper_training": 50000000
+  }
+}

@@ -40,7 +40,7 @@ DEFAULT_ENV_CONFIG: Dict[str, Any] = {
 
 DEFAULT_TRAIN_CONFIG: Dict[str, Any] = {
     "num_envs": 16,
-    "total_multiplier": 10000,
+    "total_multiplier": 50,
     "batch_size": 512,
     "n_epochs": 1,
     "gamma": 0.997,
@@ -162,7 +162,7 @@ def parse_args():
     )
     parser.add_argument("--batch-size", type=int, default=None, help="PPO minibatch size.")
     parser.add_argument("--preset", choices=list(GPU_PRESETS.keys()), default=None, help="GPU sizing preset.")
-    parser.add_argument("--stream", action="store_true", default=True, help="Enable map streaming.")
+    parser.add_argument("--stream", action="store_true", default=False, help="Enable map streaming.")
     parser.add_argument("--no-stream", dest="stream", action="store_false", help="Disable map streaming.")
     parser.add_argument("--checkpoint-freq", type=int, default=None, help="Steps between checkpoints (default: max_steps/2).")
     parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases logging.")
@@ -267,9 +267,9 @@ if __name__ == "__main__":
     if all_errors:
         raise ValueError("Config validation failed:\n" + "\n".join(f" - {e}" for e in all_errors))
 
-    # episode length mirrors the original v2 script
-    ep_length = env_defaults["max_steps"]
-    total_timesteps_target = ep_length * num_envs * total_multiplier
+    # Fixed rollout horizon for more manageable training updates
+    rollout_horizon = 512
+    total_timesteps_target = rollout_horizon * num_envs * total_multiplier
 
     run_dir = args.output_dir / args.run_name
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -289,7 +289,7 @@ if __name__ == "__main__":
     # Wrap with VecMonitor to enable episode-level logging
     env = VecMonitor(env)
 
-    ckpt_freq = args.checkpoint_freq or (ep_length // 2)
+    ckpt_freq = args.checkpoint_freq or (rollout_horizon * num_envs * 5)
     checkpoint_callback = CheckpointCallback(save_freq=ckpt_freq, save_path=str(run_dir), name_prefix="poke")
 
     status_callback = StatusWriterCallback(
@@ -354,7 +354,7 @@ if __name__ == "__main__":
     if resume_checkpoint and resume_checkpoint.suffix != ".zip":
         resume_checkpoint = resume_checkpoint.with_suffix(".zip")
 
-    train_steps_batch = ep_length // max(num_envs, 1)
+    train_steps_batch = rollout_horizon
     if resume_checkpoint and resume_checkpoint.exists():
         if resume_source is None:
             resume_source = str(resume_checkpoint)
@@ -440,7 +440,7 @@ if __name__ == "__main__":
     print(model.policy)
 
     model.learn(
-        total_timesteps=ep_length * num_envs * total_multiplier,
+        total_timesteps=rollout_horizon * num_envs * total_multiplier,
         callback=CallbackList(callbacks),
         tb_log_name="poke_ppo",
     )

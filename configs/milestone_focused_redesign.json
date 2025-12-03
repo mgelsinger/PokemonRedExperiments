@@ -1,0 +1,64 @@
+{
+  "name": "milestone_focused_redesign",
+  "description": "REDESIGNED: Maximize badges/levels/progress - speed-run style rewards",
+  "env": {
+    "headless": true,
+    "save_final_state": false,
+    "early_stop": false,
+    "action_freq": 24,
+    "max_steps": 12288,
+    "print_rewards": false,
+    "save_video": false,
+    "fast_video": true,
+    "debug": false,
+    "reward_scale": 1.0,
+    "explore_weight": 1.0,
+    "termination_condition": "badge_earned",
+    "reward_config": {
+      "enable_exploration": true,
+      "exploration_new_tile": 0.02,
+      "exploration_recent_tile": 0.002,
+      "exploration_recent_window": 50,
+
+      "enable_battle": true,
+      "battle_start_bonus": 5.0,
+      "battle_hp_delta": 3.0,
+      "battle_win": 40.0,
+      "battle_loss": -8.0,
+
+      "enable_milestone": true,
+      "milestone_badge": 1000.0,
+      "milestone_level_up": 50.0,
+      "milestone_event": 10.0,
+      "milestone_key_location": 100.0,
+
+      "enable_penalty": true,
+      "penalty_step": -0.002,
+      "penalty_wall": -0.1,
+      "penalty_stuck": -0.2,
+
+      "enable_legacy_heal": false,
+      "legacy_heal": 0.0,
+
+      "reward_scale": 1.0
+    }
+  },
+  "train": {
+    "num_envs": 12,
+    "total_multiplier": 400,
+    "batch_size": 1024,
+    "n_epochs": 4,
+    "gamma": 0.997,
+    "ent_coef": 0.01,
+    "learning_rate": 0.0003,
+    "clip_range": 0.2,
+    "vf_coef": 0.5,
+    "max_grad_norm": 0.5,
+    "gae_lambda": 0.95
+  },
+  "recommended_steps": {
+    "smoke_test": 5000000,
+    "badge_rush": 50000000,
+    "full_run": 200000000
+  }
+}

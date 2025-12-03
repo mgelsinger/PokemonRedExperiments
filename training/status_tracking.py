@@ -215,6 +215,13 @@ class PeriodicEvalCallback(BaseCallback):
         max_steps = self.eval_max_steps
         timestamp = time.time()
 
+        # Battle and milestone tracking
+        battles_started_list: List[int] = []
+        battles_won_list: List[int] = []
+        badges_earned_list: List[int] = []
+        levels_gained_list: List[int] = []
+        successes: List[bool] = []
+
         for idx in range(self.eval_episodes):
             seed = self.base_eval_seed + idx
             obs, info = env.reset(seed=seed)
@@ -229,8 +236,26 @@ class PeriodicEvalCallback(BaseCallback):
                 steps += 1
                 if max_steps and steps >= max_steps:
                     truncated = True
+
             rewards.append(total_r)
             lengths.append(steps)
+
+            # Extract battle/milestone metrics from final info
+            if 'episode' in info:
+                ep = info['episode']
+                battles_started_list.append(ep.get('battles_started', 0))
+                battles_won_list.append(ep.get('battles_won', 0))
+                badges_earned_list.append(ep.get('badges_earned', 0))
+                levels_gained_list.append(ep.get('levels_gained', 0))
+
+            successes.append(info.get('success', False))
+
+        # Compute means
+        mean_battles_started = sum(battles_started_list) / len(battles_started_list) if battles_started_list else 0.0
+        mean_battles_won = sum(battles_won_list) / len(battles_won_list) if battles_won_list else 0.0
+        mean_badges = sum(badges_earned_list) / len(badges_earned_list) if badges_earned_list else 0.0
+        mean_levels = sum(levels_gained_list) / len(levels_gained_list) if levels_gained_list else 0.0
+        success_rate = sum(successes) / len(successes) if successes else 0.0
 
         return {
             "timestamp": timestamp,
@@ -240,4 +265,15 @@ class PeriodicEvalCallback(BaseCallback):
             "mean_length": sum(lengths) / len(lengths),
             "rewards": rewards,
             "lengths": lengths,
+            # Battle metrics
+            "mean_battles_started": mean_battles_started,
+            "mean_battles_won": mean_battles_won,
+            "mean_badges_earned": mean_badges,
+            "mean_levels_gained": mean_levels,
+            "success_rate": success_rate,
+            # Detail arrays
+            "battles_started": battles_started_list,
+            "battles_won": battles_won_list,
+            "badges_earned": badges_earned_list,
+            "levels_gained": levels_gained_list,
         }

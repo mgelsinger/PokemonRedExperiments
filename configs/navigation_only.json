@@ -1,0 +1,64 @@
+{
+  "name": "navigation_only",
+  "description": "Stage 1: Pure navigation training - learn to reach locations without battles",
+  "env": {
+    "headless": true,
+    "save_final_state": false,
+    "early_stop": false,
+    "action_freq": 24,
+    "max_steps": 2048,
+    "print_rewards": false,
+    "save_video": false,
+    "fast_video": true,
+    "debug": false,
+    "reward_scale": 1.0,
+    "explore_weight": 1.0,
+    "termination_condition": "pokecenter_reached",
+    "reward_config": {
+      "enable_exploration": true,
+      "exploration_new_tile": 1.0,
+      "exploration_recent_tile": 0.1,
+      "exploration_recent_window": 50,
+
+      "enable_battle": false,
+      "battle_start_bonus": 0.0,
+      "battle_hp_delta": 0.0,
+      "battle_win": 0.0,
+      "battle_loss": 0.0,
+
+      "enable_milestone": true,
+      "milestone_badge": 0.0,
+      "milestone_level_up": 0.0,
+      "milestone_event": 0.0,
+      "milestone_key_location": 50.0,
+
+      "enable_penalty": true,
+      "penalty_step": -0.01,
+      "penalty_wall": -0.2,
+      "penalty_stuck": -0.3,
+
+      "enable_legacy_heal": false,
+      "legacy_heal": 0.0,
+
+      "reward_scale": 1.0
+    }
+  },
+  "train": {
+    "num_envs": 12,
+    "total_multiplier": 100,
+    "batch_size": 512,
+    "n_epochs": 4,
+    "gamma": 0.99,
+    "ent_coef": 0.01,
+    "learning_rate": 0.0003,
+    "clip_range": 0.2,
+    "vf_coef": 0.5,
+    "max_grad_norm": 0.5,
+    "gae_lambda": 0.95
+  },
+  "recommended_steps": {
+    "smoke_test": 500000,
+    "learn_navigation": 2000000,
+    "master_navigation": 5000000
+  }
+}

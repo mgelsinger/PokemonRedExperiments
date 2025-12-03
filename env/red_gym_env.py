@@ -125,7 +125,7 @@ class RedGymEnv(Env):
         self.observation_space = spaces.Dict(
             {
                 "screens": spaces.Box(low=0, high=255, shape=self.output_shape, dtype=np.uint8),
-                "health": spaces.Box(low=0, high=1),
+                "health": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32),
                 "level": spaces.Box(low=-1, high=1, shape=(self.enc_freqs,)),
                 "badges": spaces.MultiBinary(8),
                 "events": spaces.MultiBinary((event_flags_end - event_flags_start) * 8),
@@ -213,6 +213,16 @@ class RedGymEnv(Env):
             'battles_won': 0,
             'battles_lost': 0,
             'battles_total': 0,
+            'battles_started': 0,  # Track battle initiation (entering battle state)
+            'steps_to_first_battle': None,  # Steps until first battle this episode
+        }
+
+        # Milestone progress tracking for this episode
+        self.episode_milestones = {
+            'badges_earned': 0,  # Badges gained this episode
+            'levels_gained': 0,  # Total level-ups this episode
+            'deaths': 0,  # Death/whiteout count this episode
+            'map_progress_max': 0,  # Highest map progress reached
         }
 
         # experiment!
@@ -248,7 +258,7 @@ class RedGymEnv(Env):
 
         observation = {
             "screens": self.recent_screens,
-            "health": np.array([self.read_hp_fraction()]),
+            "health": np.array([self.read_hp_fraction()], dtype=np.float32),
             "level": self.fourier_encode(level_sum),
             "badges": np.array([int(bit) for bit in f"{self.read_m(0xD356):08b}"], dtype=np.int8),
             "events": np.array(self.read_event_bits(), dtype=np.int8),
@@ -331,9 +341,17 @@ class RedGymEnv(Env):
                 'battle_r': self.episode_reward_components['battle'],
                 'milestone_r': self.episode_reward_components['milestone'],
                 'penalty_r': self.episode_reward_components['penalty'],
+                # Battle metrics
                 'battles_won': self.episode_battle_stats['battles_won'],
                 'battles_lost': self.episode_battle_stats['battles_lost'],
                 'battles_total': self.episode_battle_stats['battles_total'],
+                'battles_started': self.episode_battle_stats['battles_started'],
+                'steps_to_first_battle': self.episode_battle_stats['steps_to_first_battle'] or self.step_count,
+                # Milestone metrics
+                'badges_earned': self.episode_milestones['badges_earned'],
+                'levels_gained': self.episode_milestones['levels_gained'],
+                'deaths': self.episode_milestones['deaths'],
+                'map_progress_max': self.episode_milestones['map_progress_max'],
             }
 
         return obs, new_reward, False, step_limit_reached, info
@@ -704,6 +722,13 @@ class RedGymEnv(Env):
             # Just entered battle - initialize battle state
             self.in_battle = True
             self.prev_opponent_hp = current_opponent_hp
+            # Track battle start
+            self.episode_battle_stats['battles_started'] += 1
+            # Track steps to first battle
+            if self.episode_battle_stats['steps_to_first_battle'] is None:
+                self.episode_battle_stats['steps_to_first_battle'] = self.step_count
+            # Reward for starting a battle (encourages battle-seeking behavior)
+            reward += self.reward_config.battle_start_bonus
 
         elif self.in_battle and not current_in_battle:
             # Just exited battle - check if won or lost
@@ -747,6 +772,8 @@ class RedGymEnv(Env):
         if current_badges > self.prev_badges:
             badge_gain = current_badges - self.prev_badges
             reward += badge_gain * self.reward_config.milestone_badge
+            # Track badges earned this episode
+            self.episode_milestones['badges_earned'] += badge_gain
             self.prev_badges = current_badges
 
         # Level up milestone
@@ -754,6 +781,8 @@ class RedGymEnv(Env):
         total_level_gain = sum(current_levels) - sum(self.prev_levels)
         if total_level_gain > 0:
             reward += total_level_gain * self.reward_config.milestone_level_up
+            # Track levels gained this episode
+            self.episode_milestones['levels_gained'] += total_level_gain
             self.prev_levels = current_levels
 
         # Event flag milestone
@@ -856,6 +885,8 @@ class RedGymEnv(Env):
                 self.total_healing_rew += heal_amount * heal_amount
             else:
                 self.died_count += 1
+                # Track death in episode milestones
+                self.episode_milestones['deaths'] += 1
 
     def read_hp_fraction(self):
         hp_sum = sum([
@@ -882,6 +913,8 @@ class RedGymEnv(Env):
     def update_map_progress(self):
         map_idx = self.read_m(0xD35E)
         self.max_map_progress = max(self.max_map_progress, self.get_map_progress(map_idx))
+        # Track max map progress for this episode
+        self.episode_milestones['map_progress_max'] = self.max_map_progress
     
     def get_map_progress(self, map_idx):
         if map_idx in self.essential_map_locations.keys():

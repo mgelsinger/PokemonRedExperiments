@@ -3,7 +3,8 @@
     "allow": [
       "Bash(python -m py_compile:*)",
       "Bash(python tools/test_reward_shaping.py:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(git check-ignore:*)"
     ],
     "deny": [],
     "ask": []
