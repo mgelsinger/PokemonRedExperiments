@@ -1,6 +1,12 @@
 import argparse
 import random
+import sys
+import os
 from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from env.red_gym_env import RedGymEnv
 
@@ -49,3 +55,5 @@ if __name__ == "__main__":
 
     env.close()
     print(f"Smoke test passed for {step+1} steps using ROM={args.rom}, state={args.state}")
+    # bypass noisy atexit teardown from SDL/PyBoy
+    os._exit(0)

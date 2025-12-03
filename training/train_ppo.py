@@ -1,7 +1,12 @@
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from env.red_gym_env import RedGymEnv
 from env.stream_agent_wrapper import StreamWrapper
@@ -105,6 +110,7 @@ def parse_args():
     parser.add_argument("--preset", choices=list(GPU_PRESETS.keys()), default=None, help="GPU sizing preset.")
     parser.add_argument("--stream", action="store_true", default=True, help="Enable map streaming.")
     parser.add_argument("--no-stream", dest="stream", action="store_false", help="Disable map streaming.")
+    parser.add_argument("--checkpoint-freq", type=int, default=None, help="Steps between checkpoints (default: max_steps/2).")
     parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases logging.")
     parser.add_argument("--wandb-project", type=str, default="pokemon-train", help="wandb project name.")
     parser.add_argument("--wandb-run-name", type=str, default=None, help="Optional wandb run name.")
@@ -153,7 +159,8 @@ if __name__ == "__main__":
     # Build vectorized envs
     env = SubprocVecEnv([make_env(i, env_config, args.stream) for i in range(num_envs)])
 
-    checkpoint_callback = CheckpointCallback(save_freq=ep_length // 2, save_path=str(run_dir), name_prefix="poke")
+    ckpt_freq = args.checkpoint_freq or (ep_length // 2)
+    checkpoint_callback = CheckpointCallback(save_freq=ckpt_freq, save_path=str(run_dir), name_prefix="poke")
     callbacks = [checkpoint_callback, TensorboardCallback(run_dir)]
 
     file_name = ""  # override with a checkpoint to resume
@@ -226,6 +233,10 @@ if __name__ == "__main__":
         callback=CallbackList(callbacks),
         tb_log_name="poke_ppo",
     )
+
+    # always save final snapshot
+    final_path = run_dir / "final.zip"
+    model.save(str(final_path))
 
     if wandb_run:
         wandb_run.finish()
