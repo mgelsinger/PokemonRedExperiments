@@ -60,6 +60,8 @@ class TrainingProcessManager:
             if self.process and self.process.poll() is None:
                 raise RuntimeError("A training run is already active. Stop it before starting another.")
 
+            self.stdout_lines.clear()
+            self.stderr_lines.clear()
             run_dir = RUNS_DIR / req.run_name
             run_dir.mkdir(parents=True, exist_ok=True)
             status_file = run_dir / "status.json"
