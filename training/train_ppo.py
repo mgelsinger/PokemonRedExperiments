@@ -107,6 +107,7 @@ def parse_args():
         default=None,
         help="Multiplier for total timesteps (ep_length * num_envs * total_multiplier).",
     )
+    parser.add_argument("--batch-size", type=int, default=None, help="PPO minibatch size.")
     parser.add_argument("--preset", choices=list(GPU_PRESETS.keys()), default=None, help="GPU sizing preset.")
     parser.add_argument("--stream", action="store_true", default=True, help="Enable map streaming.")
     parser.add_argument("--no-stream", dest="stream", action="store_false", help="Disable map streaming.")
@@ -145,6 +146,12 @@ if __name__ == "__main__":
 
     num_envs = args.num_envs or train_defaults["num_envs"]
     total_multiplier = args.total_multiplier or train_defaults["total_multiplier"]
+    batch_size = args.batch_size or train_defaults["batch_size"]
+    n_epochs = train_defaults.get("n_epochs", 1)
+    gamma = train_defaults.get("gamma", 0.997)
+    ent_coef = train_defaults.get("ent_coef", 0.01)
+    if batch_size < 1:
+        raise ValueError("--batch-size must be >= 1")
     if num_envs < 1:
         raise ValueError("--num-envs must be >= 1")
 
@@ -180,10 +187,10 @@ if __name__ == "__main__":
             env,
             verbose=1,
             n_steps=train_steps_batch,
-            batch_size=train_defaults.get("batch_size", 512),
-            n_epochs=train_defaults.get("n_epochs", 1),
-            gamma=train_defaults.get("gamma", 0.997),
-            ent_coef=train_defaults.get("ent_coef", 0.01),
+            batch_size=batch_size,
+            n_epochs=n_epochs,
+            gamma=gamma,
+            ent_coef=ent_coef,
             tensorboard_log=str(run_dir),
         )
 
@@ -198,10 +205,10 @@ if __name__ == "__main__":
         "train_config": {
             "num_envs": num_envs,
             "total_multiplier": total_multiplier,
-            "batch_size": train_defaults.get("batch_size", 512),
-            "n_epochs": train_defaults.get("n_epochs", 1),
-            "gamma": train_defaults.get("gamma", 0.997),
-            "ent_coef": train_defaults.get("ent_coef", 0.01),
+            "batch_size": batch_size,
+            "n_epochs": n_epochs,
+            "gamma": gamma,
+            "ent_coef": ent_coef,
             "preset": args.preset,
         },
         "stream_enabled": args.stream,
